@@ -315,6 +315,34 @@ mod jetstream {
         let mut consumer = stream.get_consumer("pull").await.unwrap();
         consumer.fetch(10).await.unwrap();
     }
+    #[tokio::test]
+    async fn get_consumer_from_stream() {
+        let server = nats_server::run_server("tests/configs/jetstream.conf");
+        let client = async_nats::connect(server.client_url()).await.unwrap();
+        let context = async_nats::jetstream::new(client);
+
+        let stream = context.get_or_create_stream("stream").await.unwrap();
+        stream
+            .create_consumer(Config {
+                durable_name: Some("pull".to_string()),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        stream
+            .create_consumer(&PushConsumerConfig {
+                durable_name: Some("push".to_string()),
+                deliver_subject: Some("subject".to_string()),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        let _consumer: PullConsumer = context
+            .get_consumer_from_stream("pull", "stream")
+            .await
+            .unwrap();
+    }
 
     #[tokio::test]
     async fn get_or_create_consumer() {
